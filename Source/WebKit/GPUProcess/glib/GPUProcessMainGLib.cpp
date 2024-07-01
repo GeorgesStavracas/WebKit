@@ -31,6 +31,10 @@
 #include "GPUProcess.h"
 #endif
 
+#if USE(SYSPROF_CAPTURE)
+#include <wtf/SystemTracing.h>
+#endif
+
 namespace WebKit {
 
 #if ENABLE(GPU_PROCESS) && (PLATFORM(GTK) || PLATFORM(WPE))
@@ -41,6 +45,9 @@ class GPUProcessMainGStreamer final: public AuxiliaryProcessMainBase<GPUProcess>
 int GPUProcessMain(int argc, char** argv)
 {
 #if ENABLE(GPU_PROCESS) && (PLATFORM(GTK) || PLATFORM(WPE))
+#if USE(SYSPROF_CAPTURE)
+    WTF::SysprofAnnotator::initialize("WebKit (GPU)");
+#endif
     return AuxiliaryProcessMain<GPUProcessMainGStreamer>(argc, argv);
 #else
     return 0;

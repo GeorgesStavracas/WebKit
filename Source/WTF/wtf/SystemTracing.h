@@ -35,6 +35,14 @@
 #include <sys/types.h>
 #endif
 
+#if USE(SYSPROF_CAPTURE)
+#include <cstdio>
+#include <map>
+#include <sysprof-capture.h>
+#include <wtf/Lock.h>
+#include <wtf/text/CString.h>
+#endif
+
 // No namespaces because this file has to be includable from C and Objective-C.
 
 // Reserved kdebug codes. Do not change these.
@@ -171,12 +179,23 @@ enum TracePointCode {
 
 #ifdef __cplusplus
 
+// This has to be included after the TracePointCode enum.
+#if USE(SYSPROF_CAPTURE)
+#include <wtf/glib/SysprofAnnotator.h>
+#endif
+
 namespace WTF {
 
 inline void tracePoint(TracePointCode code, uint64_t data1 = 0, uint64_t data2 = 0, uint64_t data3 = 0, uint64_t data4 = 0)
 {
 #if HAVE(KDEBUG_H)
     kdebug_trace(ARIADNEDBG_CODE(WEBKIT_COMPONENT, code), data1, data2, data3, data4);
+#elif USE(SYSPROF_CAPTURE)
+    SysprofAnnotator::singleton().tracePoint(code);
+    UNUSED_PARAM(data1);
+    UNUSED_PARAM(data2);
+    UNUSED_PARAM(data3);
+    UNUSED_PARAM(data4);
 #else
     UNUSED_PARAM(code);
     UNUSED_PARAM(data1);
@@ -327,6 +346,31 @@ enum WTFOSSignpostType {
 
 #define WTFEmitSignpostIndirectlyWithType(type, pointer, name, timeDelta, format, ...) \
     os_log(WTFSignpostLogHandle(), "type=%d name=%d p=%" PRIuPTR " ts=%llu " format, type, WTFOSSignpostName ## name, reinterpret_cast<uintptr_t>(pointer), WTFCurrentContinuousTime(timeDelta), ##__VA_ARGS__)
+
+#elif USE(SYSPROF_CAPTURE)
+
+#define WTFEmitSignpost(pointer, name, ...) \
+    WTF::SysprofAnnotator::singleton().instantMark(_STRINGIFY(name), " " __VA_ARGS__)
+
+#define WTFBeginSignpost(pointer, name, ...) \
+    WTF::SysprofAnnotator::singleton().beginMark(pointer, _STRINGIFY(name), " " __VA_ARGS__)
+
+#define WTFEndSignpost(pointer, name, ...)  \
+    WTF::SysprofAnnotator::singleton().endMark(pointer, _STRINGIFY(name), " " __VA_ARGS__)
+
+#define WTFEmitSignpostAlways(pointer, name, ...) WTFEmitSignpost((pointer), name, ##__VA_ARGS__)
+#define WTFBeginSignpostAlways(pointer, name, ...) WTFBeginSignpost((pointer), name, ##__VA_ARGS__)
+#define WTFEndSignpostAlways(pointer, name, ...) WTFEndSignpost((pointer), name, ##__VA_ARGS__)
+
+#define WTFEmitSignpostWithTimeDelta(pointer, name, timeDelta, ...) \
+    WTF::SysprofAnnotator::singleton().mark((timeDelta), _STRINGIFY(name), " " __VA_ARGS__)
+
+#define WTFBeginSignpostWithTimeDelta(pointer, name, timeDelta, ...) WTFEmitSignpostWithTimeDelta((pointer), name, (timeDelta), ##__VA_ARGS__)
+#define WTFEndSignpostWithTimeDelta(pointer, name, timeDelta, ...) WTFEmitSignpostWithTimeDelta((pointer), name, (timeDelta), ##__VA_ARGS__)
+
+#define WTFEmitSignpostAlwaysWithTimeDelta(pointer, name, timeDelta, ...) WTFEmitSignpostWithTimeDelta((pointer), name, (timeDelta), ##__VA_ARGS__)
+#define WTFBeginSignpostAlwaysWithTimeDelta(pointer, name, timeDelta, ...) WTFBeginSignpostWithTimeDelta((pointer), name, (timeDelta), ##__VA_ARGS__)
+#define WTFEndSignpostAlwaysWithTimeDelta(pointer, name, timeDelta, ...) WTFEndSignpostWithTimeDelta((pointer), name, (timeDelta), ##__VA_ARGS__)
 
 #else
 
