@@ -3580,16 +3580,12 @@ void RenderLayer::paintLayerContents(GraphicsContext& context, const LayerPainti
         if (isPaintingOverlayScrollbars || isCollectingEventRegion || isCollectingAccessibilityRegion)
             return false;
 
-        // For the current layer, the outline has been painted by the primary GraphicsLayer.
-        if (localPaintFlags.contains(PaintLayerFlag::PaintingOverflowContents))
-            return false;
-
         // Paint outlines in the background phase for a scroll container so that they don't scroll with the content.
         // FIXME: inset outlines will have the wrong z-ordering with scrolled content. See also webkit.org/b/249457.
         if (localPaintFlags.contains(PaintLayerFlag::PaintingOverflowContainer))
             return isPaintingCompositedBackground;
 
-        return isPaintingCompositedForeground;
+        return localPaintFlags.contains(PaintLayerFlag::PaintingCompositingOutlinePhase);
     }();
 
     bool shouldPaintNegativeZIndexChildren = [&]() {
@@ -6364,6 +6360,7 @@ TextStream& operator<<(TextStream& ts, RenderLayer::PaintLayerFlag flag)
     case RenderLayer::PaintLayerFlag::PaintingOverlayScrollbars: ts << "PaintingOverlayScrollbars"; break;
     case RenderLayer::PaintLayerFlag::PaintingCompositingBackgroundPhase: ts << "PaintingCompositingBackgroundPhase"; break;
     case RenderLayer::PaintLayerFlag::PaintingCompositingForegroundPhase: ts << "PaintingCompositingForegroundPhase"; break;
+    case RenderLayer::PaintLayerFlag::PaintingCompositingOutlinePhase: ts << "PaintingCompositingOutlinePhase"; break;
     case RenderLayer::PaintLayerFlag::PaintingCompositingMaskPhase: ts << "PaintingCompositingMaskPhase"; break;
     case RenderLayer::PaintLayerFlag::PaintingCompositingClipPathPhase: ts << "PaintingCompositingClipPathPhase"; break;
     case RenderLayer::PaintLayerFlag::PaintingOverflowContainer: ts << "PaintingOverflowContainer"; break;

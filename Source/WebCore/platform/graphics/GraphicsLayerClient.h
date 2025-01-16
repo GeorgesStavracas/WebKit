@@ -55,11 +55,12 @@ enum class AnimatedProperty : uint8_t {
 enum class GraphicsLayerPaintingPhase {
     Background            = 1 << 0,
     Foreground            = 1 << 1,
-    Mask                  = 1 << 2,
-    ClipPath              = 1 << 3,
-    OverflowContents      = 1 << 4,
-    CompositedScroll      = 1 << 5,
-    ChildClippingMask     = 1 << 6,
+    Outline               = 1 << 2,
+    Mask                  = 1 << 3,
+    ClipPath              = 1 << 4,
+    OverflowContents      = 1 << 5,
+    CompositedScroll      = 1 << 6,
+    ChildClippingMask     = 1 << 7,
 };
 
 enum class PlatformLayerTreeAsTextFlags : uint8_t {

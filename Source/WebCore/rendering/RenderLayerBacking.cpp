@@ -567,6 +567,7 @@ void RenderLayerBacking::createPrimaryGraphicsLayer()
     }
 #endif    
     auto& style = renderer().style();
+    updatePaintingPhases();
     updateOpacity(style);
     updateTransform(style);
     updateFilters(style);
@@ -2937,8 +2938,8 @@ void RenderLayerBacking::updateRootLayerConfiguration()
 void RenderLayerBacking::updatePaintingPhases()
 {
     // Phases for m_maskLayer are set elsewhere.
-    OptionSet<GraphicsLayerPaintingPhase> primaryLayerPhases = { GraphicsLayerPaintingPhase::Background, GraphicsLayerPaintingPhase::Foreground };
-    
+    OptionSet<GraphicsLayerPaintingPhase> primaryLayerPhases = { GraphicsLayerPaintingPhase::Background, GraphicsLayerPaintingPhase::Foreground, GraphicsLayerPaintingPhase::Outline };
+
     if (m_foregroundLayer) {
         OptionSet<GraphicsLayerPaintingPhase> foregroundLayerPhases { GraphicsLayerPaintingPhase::Foreground };
         
@@ -3659,14 +3660,15 @@ void RenderLayerBacking::paintIntoLayer(const GraphicsLayer* graphicsLayer, Grap
     };
 
     paintOneLayer(m_owningLayer, paintFlags);
-    
+
     // FIXME: Need to check m_foregroundLayer, masking etc. webkit.org/b/197565.
     GraphicsLayer* destinationForSharingLayers = m_scrolledContentsLayer ? m_scrolledContentsLayer.get() : m_graphicsLayer.get();
 
     if (graphicsLayer == destinationForSharingLayers) {
         OptionSet<RenderLayer::PaintLayerFlag> sharingLayerPaintFlags = {
             RenderLayer::PaintLayerFlag::PaintingCompositingBackgroundPhase,
-            RenderLayer::PaintLayerFlag::PaintingCompositingForegroundPhase
+            RenderLayer::PaintLayerFlag::PaintingCompositingForegroundPhase,
+            RenderLayer::PaintLayerFlag::PaintingCompositingOutlinePhase,
         };
 
         if (graphicsLayer->paintingPhase().contains(GraphicsLayerPaintingPhase::OverflowContents))
@@ -3692,6 +3694,8 @@ OptionSet<RenderLayer::PaintLayerFlag> RenderLayerBacking::paintFlagsForLayer(co
         paintFlags.add(RenderLayer::PaintLayerFlag::PaintingCompositingBackgroundPhase);
     if (paintingPhase.contains(GraphicsLayerPaintingPhase::Foreground))
         paintFlags.add(RenderLayer::PaintLayerFlag::PaintingCompositingForegroundPhase);
+    if (paintingPhase.contains(GraphicsLayerPaintingPhase::Outline))
+        paintFlags.add(RenderLayer::PaintLayerFlag::PaintingCompositingOutlinePhase);
     if (paintingPhase.contains(GraphicsLayerPaintingPhase::Mask))
         paintFlags.add(RenderLayer::PaintLayerFlag::PaintingCompositingMaskPhase);
     if (paintingPhase.contains(GraphicsLayerPaintingPhase::ClipPath))
