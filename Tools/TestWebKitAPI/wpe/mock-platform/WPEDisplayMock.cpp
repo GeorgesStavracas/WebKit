@@ -27,21 +27,60 @@
 #include "WPEDisplayMock.h"
 
 #include <gio/gio.h>
+#include <glib-object.h>
+#include <glib.h>
 #include <gmodule.h>
 
 struct _WPEDisplayMock {
     WPEDisplay parent;
+
+    struct {
+        bool shouldFail;
+    } connect;
+
+    GFile* testCase;
 };
 
 G_DEFINE_DYNAMIC_TYPE(WPEDisplayMock, wpe_display_mock, WPE_TYPE_DISPLAY)
 
-static void wpeDisplayMockDispose(GObject* object)
+enum {
+    PROP_0,
+    PROP_TEST_CASE,
+    N_PROPERTIES,
+};
+
+static std::array<GParamSpec*, N_PROPERTIES> sObjProperties;
+
+static void loadTestCase(WPEDisplayMock* displayMock, GFile* testCase)
 {
-    G_OBJECT_CLASS(wpe_display_mock_parent_class)->dispose(object);
+    g_autoptr(GKeyFile) keyFile = nullptr;
+    g_autoptr(GError) error = nullptr;
+
+    if (!g_set_object(&displayMock->testCase, testCase))
+        return;
+
+    g_debug("Loading test case %s", g_file_peek_path(testCase));
+
+    keyFile = g_key_file_new();
+    g_key_file_load_from_file(keyFile, g_file_peek_path(testCase), G_KEY_FILE_NONE, &error);
+    if (error)
+        g_assert_not_reached();
+
+    displayMock->connect.shouldFail = g_key_file_get_boolean(keyFile, "Display", "FailConnect", &error);
+    if (error && g_error_matches(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE)) {
+        g_critical("Invalid value in FailConnect key: %s", error->message);
+        g_assert_not_reached();
+    }
 }
 
 static gboolean wpeDisplayMockConnect(WPEDisplay* display, GError** error)
 {
+    WPEDisplayMock* displayMock = WPE_DISPLAY_MOCK(display);
+
+    if (displayMock->connect.shouldFail) {
+        g_set_error(error, G_IO_ERROR, G_IO_ERROR_FAILED, "Failed to connect mock display");
+        return FALSE;
+    }
     return TRUE;
 }
 
@@ -96,10 +135,47 @@ static gboolean wpeDisplayMockUseExplicitSync(WPEDisplay* display)
     return FALSE;
 }
 
+static void wpeDisplayMockDispose(GObject* object)
+{
+    WPEDisplayMock* displayMock = WPE_DISPLAY_MOCK(object);
+
+    g_clear_object(&displayMock->testCase);
+
+    G_OBJECT_CLASS(wpe_display_mock_parent_class)->dispose(object);
+}
+
+static void wpeDisplayMockGetProperty(GObject* object, guint propId, GValue* value, GParamSpec* paramSpec)
+{
+    WPEDisplayMock* displayMock = WPE_DISPLAY_MOCK(object);
+
+    switch (propId) {
+    case PROP_TEST_CASE:
+        g_value_set_object(value, displayMock->testCase);
+        break;
+    default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, paramSpec);
+    }
+}
+
+static void wpeDisplayMockSetProperty(GObject* object, guint propId, const GValue* value, GParamSpec* paramSpec)
+{
+    WPEDisplayMock* displayMock = WPE_DISPLAY_MOCK(object);
+
+    switch (propId) {
+    case PROP_TEST_CASE:
+        loadTestCase(displayMock, G_FILE(g_value_get_object(value)));
+        break;
+    default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, paramSpec);
+    }
+}
+
 static void wpe_display_mock_class_init(WPEDisplayMockClass* displayMockClass)
 {
     GObjectClass* objectClass = G_OBJECT_CLASS(displayMockClass);
     objectClass->dispose = wpeDisplayMockDispose;
+    objectClass->get_property = wpeDisplayMockGetProperty;
+    objectClass->set_property = wpeDisplayMockSetProperty;
 
     WPEDisplayClass* displayClass = WPE_DISPLAY_CLASS(displayMockClass);
     displayClass->connect = wpeDisplayMockConnect;
@@ -113,6 +189,12 @@ static void wpe_display_mock_class_init(WPEDisplayMockClass* displayMockClass)
     displayClass->get_drm_device = wpeDisplayMockGetDRMDevice;
     displayClass->get_drm_render_node = wpeDisplayMockGetDRMRenderNode;
     displayClass->use_explicit_sync = wpeDisplayMockUseExplicitSync;
+
+    sObjProperties[PROP_TEST_CASE] =
+        g_param_spec_object("test-case", nullptr, nullptr, G_TYPE_FILE,
+            static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_properties(objectClass, N_PROPERTIES, sObjProperties.data());
 }
 
 static void wpe_display_mock_class_finalize(WPEDisplayMockClass*)

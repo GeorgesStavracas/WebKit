@@ -26,9 +26,22 @@
 #include "config.h"
 
 #include "TestMain.h"
-#include <glib-object.h>
-#include <glib.h>
+#include <gio/gio.h>
 #include <wpe/WPEDisplay.h>
+#include <wtf/glib/GUniquePtr.h>
+
+#define LOAD_TEST_CASE(display, testCase) \
+    G_STMT_START { \
+        GUniquePtr<gchar> path(g_build_filename(WPE_MOCK_TEST_CASES_DIR, testCase, nullptr)); \
+        GRefPtr<GFile> file = adoptGRef(g_file_new_for_path(path.get())); \
+        g_object_set(display, "test-case", file.get(), NULL); \
+    } G_STMT_END
+
+static WPEDisplay* createMockDisplay(void)
+{
+    WPEDisplay* display = wpe_display_get_default();
+    return WPE_DISPLAY(g_object_new(G_OBJECT_TYPE(display), nullptr));
+}
 
 static void testLoadExternalDisplay(Test*, gconstpointer)
 {
@@ -39,9 +52,39 @@ static void testLoadExternalDisplay(Test*, gconstpointer)
     g_assert_true(display == wpe_display_get_primary());
 }
 
+static void testEmpty(Test*, gconstpointer)
+{
+    GRefPtr<WPEDisplay> display = adoptGRef(createMockDisplay());
+
+    LOAD_TEST_CASE(display.get(), "empty.ini");
+
+    g_assert_cmpuint(wpe_display_get_n_screens(display.get()), ==, 0);
+}
+
+static void testConnect(Test*, gconstpointer)
+{
+    GRefPtr<WPEDisplay> display = adoptGRef(createMockDisplay());
+    GUniqueOutPtr<GError> error;
+    GUniqueOutPtr<GError> error2;
+
+    LOAD_TEST_CASE(display.get(), "fail-connect.ini");
+    g_assert_cmpuint(wpe_display_get_n_screens(display.get()), ==, 0);
+
+    wpe_display_connect(display.get(), &error.outPtr());
+    g_assert_error(error.get(), G_IO_ERROR, G_IO_ERROR_FAILED);
+
+    LOAD_TEST_CASE(display.get(), "succeed-connect.ini");
+    g_assert_cmpuint(wpe_display_get_n_screens(display.get()), ==, 0);
+
+    wpe_display_connect(display.get(), &error2.outPtr());
+    g_assert_no_error(error2.get());
+}
+
 void beforeAll()
 {
     Test::add("Display", "load-external-display", testLoadExternalDisplay);
+    Test::add("Display", "empty", testEmpty);
+    Test::add("Display", "connect", testConnect);
 }
 
 void afterAll()

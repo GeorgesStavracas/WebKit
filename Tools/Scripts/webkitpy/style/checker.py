@@ -140,6 +140,13 @@ _PATH_RULES_SPECIFIER = [
     # API and therefore do not follow the same header including
     # discipline as WebCore.
 
+    ([
+        # WPE Mock Platform code use upper case, underscore separated, words in
+        # certain types of enums (e.g. signals, properties), following GObject
+        # standards.
+        os.path.join('Tools', 'TestWebKitAPI', 'wpe', 'mock-platform')],
+        ["-readability/enum_casing"]),
+
     ([  # Ignore use of RetainPtr<NSObject *> for tests that ensure its compatibility with ReteainPtr<NSObject>.
       os.path.join('Tools', 'TestWebKitAPI', 'Tests', 'WTF', 'ns', 'RetainPtr.mm')],
      ["-runtime/retainptr"]),
