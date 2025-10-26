@@ -39,6 +39,9 @@
 #if USE(CF)
 using PlatformRunLoopObserver = struct __CFRunLoopObserver*;
 using PlatformRunLoop = struct __CFRunLoop*;
+#elif USE(GLIB)
+using PlatformRunLoopObserver = ActivityObserver;
+using PlatformRunLoop = RefPtr<RunLoop>;
 #else
 using PlatformRunLoopObserver = void*;
 using PlatformRunLoop = void*;
@@ -101,7 +104,8 @@ private:
     RetainPtr<PlatformRunLoopObserver> m_runLoopObserver;
 #elif USE(GLIB_EVENT_LOOP)
     WellKnownOrder m_order { WellKnownOrder::GraphicsCommit };
-    RefPtr<ActivityObserver> m_runLoopObserver;
+    RefPtr<PlatformRunLoopObserver> m_runLoopObserver;
+    PlatformRunLoop m_scheduledOnRunLoop;
 #endif
 };
 

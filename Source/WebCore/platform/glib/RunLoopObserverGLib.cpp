@@ -29,24 +29,33 @@
 #if USE(GLIB_EVENT_LOOP)
 namespace WebCore {
 
-void RunLoopObserver::schedule(PlatformRunLoop, OptionSet<Activity> activities)
+void RunLoopObserver::schedule(PlatformRunLoop runLoop, OptionSet<Activity> activities)
 {
-    if (m_runLoopObserver)
+    if (!runLoop)
+        runLoop = RunLoop::currentSingleton();
+    ASSERT(runLoop);
+
+    if (m_runLoopObserver) {
+        ASSERT(m_scheduledOnRunLoop == runLoop);
         return;
+    }
 
     m_runLoopObserver = ActivityObserver::create(static_cast<uint8_t>(m_order), activities, [this]() {
         runLoopObserverFired();
         return isRepeating() ? ActivityObserver::ContinueObservation::Yes : ActivityObserver::ContinueObservation::No;
     });
 
-    RunLoop::currentSingleton().observeActivity(*m_runLoopObserver);
+    m_scheduledOnRunLoop = runLoop;
+    m_scheduledOnRunLoop->observeActivity(*m_runLoopObserver);
 }
 
 void RunLoopObserver::invalidate()
 {
     if (m_runLoopObserver) {
-        RunLoop::currentSingleton().unobserveActivity(*m_runLoopObserver);
+        ASSERT(m_scheduledOnRunLoop);
+        m_scheduledOnRunLoop->unobserveActivity(*m_runLoopObserver);
         m_runLoopObserver = nullptr;
+        m_scheduledOnRunLoop = nullptr;
     }
 }
 
