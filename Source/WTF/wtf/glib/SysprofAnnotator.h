@@ -55,11 +55,11 @@ public:
         va_end(args);
     }
 
-    void mark(int64_t time, std::span<const char> name, const char* description, ...) WTF_ATTRIBUTE_PRINTF(4, 5)
+    void mark(int64_t time, int64_t duration, std::span<const char> name, const char* description, ...) WTF_ATTRIBUTE_PRINTF(5, 6)
     {
         va_list args;
         va_start(args, description);
-        sysprof_collector_mark_vprintf(time, 0, m_processName, name.data(), description, args);
+        sysprof_collector_mark_vprintf(time, duration, m_processName, name.data(), description, args);
         va_end(args);
     }
 

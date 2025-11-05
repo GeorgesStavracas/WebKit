@@ -75,11 +75,15 @@ static bool isSignpostEnabled()
     static bool flag = false;
     static std::once_flag onceKey;
     std::call_once(onceKey, [&] {
+#if USE(SYSPROF_CAPTURE)
+        flag = true;
+#else
         const char* value = getenv("WebKitPerformanceSignpostEnabled");
         if (value) {
             if (auto result = parseInteger<int>(StringView::fromLatin1(value)); result && result.value())
                 flag = true;
         }
+#endif
     });
     return flag;
 }
@@ -227,7 +231,7 @@ Vector<Ref<PerformanceEntry>> Performance::getEntriesByType(const String& entryT
 
     if (m_navigationTiming && entryType == "navigation"_s)
         entries.append(*m_navigationTiming);
-    
+
     if (entryType == "resource"_s)
         entries.appendVector(m_resourceTimingBuffer);
 
@@ -535,6 +539,14 @@ ExceptionOr<Ref<PerformanceMeasure>> Performance::measure(JSC::JSGlobalObject& g
             WTFBeginSignpostAlwaysWithSpecificTime(entry.ptr(), WebKitPerformance, correctedStartTime, "%" PUBLIC_LOG_STRING, message.data());
             WTFEndSignpostAlwaysWithSpecificTime(entry.ptr(), WebKitPerformance, correctedEndTime, "%" PUBLIC_LOG_STRING, message.data());
         }
+#elif USE(SYSPROF_CAPTURE)
+    if (auto* annotator = SysprofAnnotator::singletonIfCreated()) {
+        auto startTime = m_continuousTimeOrigin + Seconds::fromMilliseconds(entry->startTime());
+        int64_t platformStartTime = startTime.approximateMonotonicTime().secondsSinceEpoch().microsecondsAs<int64_t>();
+
+        annotator->mark(platformStartTime, Seconds::fromMilliseconds(entry->duration()).microsecondsAs<int64_t>(), std::span("WebKitPerformance"), "%" PUBLIC_LOG_STRING, message.data());
+        fprintf(stderr, "WebKitPerformance mark %" PUBLIC_LOG_STRING "\n", message.data());
+    }
 #endif
         {
             auto timeOrigin = m_continuousTimeOrigin.approximateMonotonicTime();

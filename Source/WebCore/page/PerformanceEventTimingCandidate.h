@@ -27,6 +27,7 @@
 
 #include <WebCore/EventTarget.h>
 #include <WebCore/EventTimingInteractionID.h>
+#include <wtf/SystemTracing.h>
 #include <wtf/WeakPtr.h>
 
 namespace WebCore {
@@ -42,6 +43,9 @@ struct PerformanceEventTimingCandidate {
     Seconds duration;
     WeakPtr<EventTarget, EventTarget::WeakPtrImplType> target;
     EventTimingInteractionID interactionID;
+#if USE(SYSPROF_CAPTURE)
+    int64_t startTimestamp { 0 };
+#endif
 };
 
 }

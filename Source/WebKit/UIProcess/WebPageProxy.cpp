@@ -4102,6 +4102,7 @@ void WebPageProxy::processNextQueuedMouseEvent()
     if (event->type() == WebEventType::MouseMove) {
         internals().coalescedMouseEvents.append(event);
         eventWithCoalescedEvents->setCoalescedEvents(internals().coalescedMouseEvents);
+        WTFBeginSignpost(this, PageProxyEventMouseMove);
     }
 
     LOG_WITH_STREAM(MouseHandling, stream << "UIProcess: sent mouse event " << eventType << " (queue size " << internals().mouseEventQueue.size() << ", coalesced events size " << internals().coalescedMouseEvents.size() << ")");
@@ -11107,6 +11108,10 @@ void WebPageProxy::didReceiveEventIPC(IPC::Connection& connection, WebEventType 
 void WebPageProxy::didReceiveEvent(IPC::Connection* connection, WebEventType eventType, bool handled, std::optional<RemoteUserInputEventData>&& remoteUserInputEventData)
 {
     MESSAGE_CHECK_BASE(!remoteUserInputEventData || protectedPreferences()->siteIsolationEnabled(), connection);
+
+    if (eventType == WebEventType::MouseMove)
+        WTFEndSignpost(this, PageProxyEventMouseMove);
+
     switch (eventType) {
     case WebEventType::MouseMove:
     case WebEventType::Wheel:

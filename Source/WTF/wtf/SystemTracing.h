@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #pragma once
@@ -439,7 +439,7 @@ enum WTFOSSignpostType {
     do { \
         IGNORE_WARNINGS_BEGIN("format-zero-length") \
         if (auto* annotator = SysprofAnnotator::singletonIfCreated()) \
-            annotator->mark(SysprofAnnotator::currentContinuousTime(timeDelta), std::span(_STRINGIFY(name)), "" __VA_ARGS__); \
+            annotator->mark(SysprofAnnotator::currentContinuousTime(timeDelta), 0, std::span(_STRINGIFY(name)), "" __VA_ARGS__); \
         IGNORE_WARNINGS_END \
     } while (0)
 
@@ -454,7 +454,7 @@ enum WTFOSSignpostType {
     do { \
         IGNORE_WARNINGS_BEGIN("format-zero-length") \
         if (auto* annotator = SysprofAnnotator::singletonIfCreated()) \
-            annotator->mark(specificTime, std::span(_STRINGIFY(name)), "" __VA_ARGS__); \
+            annotator->mark(specificTime, std::span(_STRINGIFY(name)), Seconds(0, "" __VA_ARGS__); \
         IGNORE_WARNINGS_END \
     } while (0)
 

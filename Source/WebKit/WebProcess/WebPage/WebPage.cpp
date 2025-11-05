@@ -3602,6 +3602,8 @@ void WebPage::contextMenuForKeyEvent()
 
 void WebPage::mouseEvent(FrameIdentifier frameID, const WebMouseEvent& mouseEvent, std::optional<Vector<SandboxExtension::Handle>>&& sandboxExtensions)
 {
+    WTFBeginSignpost(this, WebPageMouseEvent);
+
     SetForScope userIsInteractingChange { m_userIsInteracting, true };
 
     m_internals->userActivity.impulse();
@@ -3614,6 +3616,7 @@ void WebPage::mouseEvent(FrameIdentifier frameID, const WebMouseEvent& mouseEven
 
     if (!shouldHandleEvent) {
         send(Messages::WebPageProxy::DidReceiveEventIPC(mouseEvent.type(), false, std::nullopt));
+        WTFEndSignpost(this, WebPageMouseEvent);
         return;
     }
 
@@ -3636,6 +3639,7 @@ void WebPage::mouseEvent(FrameIdentifier frameID, const WebMouseEvent& mouseEven
         if (auto remoteMouseEventData = mouseEventResult.remoteUserInputEventData()) {
             revokeSandboxExtensions(mouseEventSandboxExtensions);
             send(Messages::WebPageProxy::DidReceiveEventIPC(mouseEvent.type(), false, *remoteMouseEventData));
+            WTFEndSignpost(this, WebPageMouseEvent);
             return;
         }
         handled = mouseEventResult.wasHandled();
@@ -3679,6 +3683,8 @@ void WebPage::mouseEvent(FrameIdentifier frameID, const WebMouseEvent& mouseEven
     if (mouseEvent.type() == WebEventType::MouseUp)
         removeTextInteractionSources(TextInteractionSource::Mouse);
 #endif
+
+    WTFEndSignpost(this, WebPageMouseEvent);
 }
 
 void WebPage::setLastKnownMousePosition(WebCore::FrameIdentifier frameID, IntPoint eventPoint, IntPoint globalPoint)

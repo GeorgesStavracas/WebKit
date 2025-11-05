@@ -31,6 +31,7 @@
 
 #include "WebEventModifier.h"
 #include "WebEventType.h"
+#include <cstdint>
 #include <wtf/CheckedPtr.h>
 #include <wtf/MonotonicTime.h>
 #include <wtf/OptionSet.h>
@@ -55,6 +56,7 @@ public:
 
     virtual ~WebEvent() = default;
 
+    int64_t id() const { return m_id; }
     WebEventType type() const { return m_type; }
 
     bool shiftKey() const { return m_modifiers.contains(WebEventModifier::ShiftKey); }
@@ -70,11 +72,19 @@ public:
     bool isActivationTriggeringEvent() const;
     WTF::UUID authorizationToken() const { return m_authorizationToken; }
 
+
 private:
     WebEventType m_type;
     OptionSet<WebEventModifier> m_modifiers;
     MonotonicTime m_timestamp;
     WTF::UUID m_authorizationToken;
+
+    int64_t m_id { nextId() };
+
+    int64_t nextId() {
+        static int64_t id = 0;
+        return id++;
+    }
 };
 
 WTF::TextStream& operator<<(WTF::TextStream&, WebEventType);

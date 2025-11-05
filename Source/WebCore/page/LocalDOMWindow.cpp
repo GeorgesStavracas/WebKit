@@ -805,6 +805,7 @@ Performance& LocalDOMWindow::performance() const
         RefPtr documentLoader = document() ? document()->loader() : nullptr;
         auto timeOrigin = documentLoader ? documentLoader->timing().timeOrigin() : MonotonicTime::now();
         m_performance = Performance::create(protectedDocument().get(), timeOrigin);
+        fprintf(stderr, "LocalDOMWindow::performance(): creating Performance object\n");
     }
     ASSERT(m_performance->scriptExecutionContext() == document());
     return *m_performance;
@@ -1365,7 +1366,7 @@ int LocalDOMWindow::innerHeight() const
 {
     if (!frame())
         return 0;
-    
+
     // Force enough layout in the parent document to ensure that the FrameView has been resized.
     if (RefPtr ownerElement = frameElement())
         ownerElement->protectedDocument()->updateLayoutIfDimensionsOutOfDate(*ownerElement, { DimensionsCheck::Height });
@@ -1373,7 +1374,7 @@ int LocalDOMWindow::innerHeight() const
     RefPtr frame = localFrame();
     if (!frame)
         return 0;
-    
+
     RefPtr view = frame->view();
     if (!view)
         return 0;
@@ -2644,7 +2645,10 @@ PerformanceEventTimingCandidate LocalDOMWindow::initializeEventTimingEntry(Event
         .processingEnd = { },
         .duration = { },
         .target = { },
-        .interactionID = computeInteractionID(event, type)
+        .interactionID = computeInteractionID(event, type),
+#if USE(SYSPROF_CAPTURE)
+        .startTimestamp = SYSPROF_CAPTURE_CURRENT_TIME,
+#endif
     };
 }
 
@@ -2653,6 +2657,13 @@ void LocalDOMWindow::finalizeEventTimingEntry(PerformanceEventTimingCandidate& e
     auto processingEnd = performance().nowInReducedResolutionSeconds();
     entry.processingEnd = processingEnd;
     entry.target = event.target();
+
+#if USE(SYSPROF_CAPTURE)
+    if (auto* annotator = SysprofAnnotator::singletonIfCreated()) {
+        auto t = event.type().string().utf8();
+        annotator->mark(entry.startTimestamp, SYSPROF_CAPTURE_CURRENT_TIME - entry.startTimestamp, std::span("EventTiming"), "event=%s"_s, t.data());
+    }
+#endif
 
     switch (type) {
     case EventType::pointerdown: {
