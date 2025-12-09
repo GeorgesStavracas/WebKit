@@ -26,11 +26,13 @@
  */
 
 #include "config.h"
+#include <sys/poll.h>
 #include <wtf/RunLoop.h>
 
 #include <glib.h>
 #include <wtf/BubbleSort.h>
 #include <wtf/MainThread.h>
+#include <wtf/RuntimeApplicationChecks.h>
 #include <wtf/SafeStrerror.h>
 #include <wtf/glib/ActivityObserver.h>
 #include <wtf/glib/RunLoopSourcePriority.h>
@@ -65,10 +67,33 @@ GSourceFuncs RunLoop::s_runLoopSourceFunctions = {
 
 RunLoop::RunLoop()
 {
+    bool createdMainLoop = false;
     m_mainContext = g_main_context_get_thread_default();
-    if (!m_mainContext)
-        m_mainContext = isMainThread() ? g_main_context_default() : adoptGRef(g_main_context_new());
+    if (!m_mainContext) {
+        if (isMainThread())
+            m_mainContext = g_main_context_default();
+        else {
+            m_mainContext = adoptGRef(g_main_context_new());
+            createdMainLoop = true;
+        }
+    }
     ASSERT(m_mainContext);
+
+    // Force the use of ppoll() in auxiliary processes, or with mainloops created by WebKit
+    if (createdMainLoop || isInAuxiliaryProcess()) {
+        g_main_context_set_poll_func(m_mainContext.get(), [](GPollFD *fds, guint nfds, gint timeout_usec) -> gint {
+            struct timespec* timespecPointer = nullptr;
+            struct timespec timespec;
+
+            if (timeout_usec > -1) {
+                timespec.tv_sec = timeout_usec / G_USEC_PER_SEC;
+                timespec.tv_nsec = (timeout_usec % G_USEC_PER_SEC) * 1000L;
+                timespecPointer = &timespec;
+            }
+
+            return ppoll((struct pollfd *) fds, nfds, timespecPointer, nullptr);
+        });
+    }
 
     m_source = adoptGRef(g_source_new(&RunLoop::s_runLoopSourceFunctions, sizeof(RunLoopSource)));
     auto& runLoopSource = *reinterpret_cast<RunLoopSource*>(m_source.get());
