@@ -799,6 +799,9 @@ if (PORT STREQUAL GTK OR PORT STREQUAL WPE)
         -Wunsafe-buffer-usage-in-libc-call
         -fsafe-buffer-usage-suggestions
     )
+
+    check_function_exists(timerfd_create TIMERFD_AVAILABLE)
+    SET_AND_EXPOSE_TO_BUILD(USE_TIMERFD ${TIMERFD_AVAILABLE})
 endif ()
 
 WEBKIT_COPY_FILES(WTF_CopyHeaders
